@@ -19,27 +19,27 @@ public class XMLSerializator {
   private Queue<Object> queue = new ArrayDeque<>();
 
   private static final Set<String> primAndWrappers =
-      new HashSet<>(Arrays.asList(
-          "byte",
-          "short",
-          "int",
-          "long",
-          "float",
-          "double",
-          "boolean",
-          "char",
-          "java.lang.Byte",
-          "java.lang.Short",
-          "java.lang.Integer",
-          "java.lang.Long",
-          "java.lang.Float",
-          "java.lang.Double",
-          "java.lang.Boolean",
-          "java.lang.Character",
-          "java.lang.String"));
+      new HashSet<>(
+          Arrays.asList(
+              "byte",
+              "short",
+              "int",
+              "long",
+              "float",
+              "double",
+              "boolean",
+              "char",
+              "java.lang.Byte",
+              "java.lang.Short",
+              "java.lang.Integer",
+              "java.lang.Long",
+              "java.lang.Float",
+              "java.lang.Double",
+              "java.lang.Boolean",
+              "java.lang.Character",
+              "java.lang.String"));
 
-
-  public void write(Object obj) throws NullPointerException{
+  public void write(Object obj) throws NullPointerException {
     if (obj == null) throw new NullPointerException();
     queue.add(obj);
   }
@@ -49,39 +49,46 @@ public class XMLSerializator {
     DocumentBuilder builder;
     try {
       builder = factory.newDocumentBuilder();
-
-      Document doc = builder.newDocument();
-      Element rootElement = doc.createElementNS("xml_stream", "XML_STEAM");
-
-      Element objectPull = doc.createElement("Object_pool");
-      Element objectSteam = doc.createElement("Object_stream");
-      doc.appendChild(rootElement);
-      rootElement.appendChild(objectSteam);
-      rootElement.appendChild(objectPull);
-
-      TransformerFactory transformerFactory = TransformerFactory.newInstance();
-      Transformer transformer = transformerFactory.newTransformer();
-      Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
-
-      for (Object x : queue) {
-        parseObject(doc, x, objectPull, objectSteam, parsedObjects);
-      }
-
-      transformer.setOutputProperty(OutputKeys.INDENT, "yes");
-      DOMSource source = new DOMSource(doc);
-
-      StreamResult result = new StreamResult(stream);
-      transformer.transform(source, result);
-
-      queue = new ArrayDeque<>();
-      id = 0;
-    } catch (TransformerConfigurationException e) {
-      e.printStackTrace();
-    } catch (TransformerException e) {
-      e.printStackTrace();
     } catch (ParserConfigurationException e) {
-      e.printStackTrace();
+      System.err.println("Can't create XML document: " + e.getMessage());
+      return;
     }
+
+    Document doc = builder.newDocument();
+    Element rootElement = doc.createElementNS("xml_stream", "XML_STEAM");
+
+    Element objectPull = doc.createElement("Object_pool");
+    Element objectSteam = doc.createElement("Object_stream");
+    doc.appendChild(rootElement);
+    rootElement.appendChild(objectSteam);
+    rootElement.appendChild(objectPull);
+
+    TransformerFactory transformerFactory = TransformerFactory.newInstance();
+    Transformer transformer = null;
+    try {
+      transformer = transformerFactory.newTransformer();
+    } catch (TransformerConfigurationException e) {
+      System.err.println("Can't create transformer fot xml document: " + e.getMessage());
+      return;
+    }
+    Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
+
+    for (Object x : queue) {
+      parseObject(doc, x, objectPull, objectSteam, parsedObjects);
+    }
+
+    transformer.setOutputProperty(OutputKeys.INDENT, "yes");
+    DOMSource source = new DOMSource(doc);
+
+    StreamResult result = new StreamResult(stream);
+    try {
+      transformer.transform(source, result);
+    } catch (TransformerException e) {
+      System.err.println(e.getMessage());
+    }
+
+    queue = new ArrayDeque<>();
+    id = 0;
   }
 
   private void parseObject(
@@ -115,8 +122,7 @@ public class XMLSerializator {
               if (field.get(obj) != null) {
                 queue.add(field.get(obj));
                 value = String.valueOf(++id);
-              }
-              else{
+              } else {
                 value = "null";
               }
               parsedObjects.put(field.get(obj), id);
