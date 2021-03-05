@@ -1,5 +1,6 @@
 package ru.nsu.fit.XMLSerialization;
 
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -35,17 +36,17 @@ public class XMLSerializator {
           "java.lang.Character",
           "java.lang.String");
 
-  public void createXMLDocument(Stream<?> inputStream, StreamResult stream) {
+  public void createXMLDocument(Stream<?> inputStream, OutputStream stream) {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder;
     try {
       builder = factory.newDocumentBuilder();
 
       Document doc = builder.newDocument();
-      Element rootElement = doc.createElementNS("xml_steam", "XML_STEAM");
+      Element rootElement = doc.createElementNS("xml_stream", "XML_STEAM");
 
-      Element objectPull = doc.createElement("Object_pull");
-      Element objectSteam = doc.createElement("Object_steam");
+      Element objectPull = doc.createElement("Object_pool");
+      Element objectSteam = doc.createElement("Object_stream");
       doc.appendChild(rootElement);
       rootElement.appendChild(objectSteam);
       rootElement.appendChild(objectPull);
@@ -59,7 +60,8 @@ public class XMLSerializator {
       transformer.setOutputProperty(OutputKeys.INDENT, "yes");
       DOMSource source = new DOMSource(doc);
 
-      transformer.transform(source, stream);
+      StreamResult result = new StreamResult(stream);
+      transformer.transform(source, result);
 
     } catch (Exception e) {
       e.printStackTrace();
@@ -67,7 +69,7 @@ public class XMLSerializator {
   }
 
   private void parseObject(
-      Document doc, Object obj, Element pull, Element steam, Map<Object, Integer> parsedObjects) {
+      Document doc, Object obj, Element pull, Element stream, Map<Object, Integer> parsedObjects) {
 
     Queue<Object> queue = new ArrayDeque<>();
     queue.add(obj);
@@ -118,7 +120,7 @@ public class XMLSerializator {
         }
       }
       if (isSteam) {
-        steam.appendChild(currObject);
+        stream.appendChild(currObject);
         isSteam = false;
       } else {
         pull.appendChild(currObject);

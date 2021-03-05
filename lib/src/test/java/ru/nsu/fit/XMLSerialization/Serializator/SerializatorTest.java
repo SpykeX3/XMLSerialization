@@ -35,12 +35,11 @@ public class SerializatorTest {
     TestClass testClass1 = new TestClass();
     XMLSerializator serializator = new XMLSerializator();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    StreamResult streamResult = new StreamResult(outputStream);
     List<Object> objects = new ArrayList<>();
     objects.add(testClass);
     objects.add(testClass1);
 
-    serializator.createXMLDocument(Stream.of(new DummyClassOuter()), streamResult);
-    System.out.println(streamResult.getOutputStream());
+    serializator.createXMLDocument(Stream.of(new DummyClassOuter()), outputStream);
+    System.out.println(outputStream);
   }
 }
