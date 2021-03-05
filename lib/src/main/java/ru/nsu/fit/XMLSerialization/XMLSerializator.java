@@ -4,9 +4,9 @@ import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.stream.Stream;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
@@ -16,8 +16,10 @@ import org.w3c.dom.Element;
 
 public class XMLSerializator {
   private int id = 0;
-  private static final List<String> primAndWrappers =
-      Arrays.asList(
+  private Queue<Object> queue = new ArrayDeque<>();
+
+  private static final Set<String> primAndWrappers =
+      new HashSet<>(Arrays.asList(
           "byte",
           "short",
           "int",
@@ -34,9 +36,15 @@ public class XMLSerializator {
           "java.lang.Double",
           "java.lang.Boolean",
           "java.lang.Character",
-          "java.lang.String");
+          "java.lang.String"));
 
-  public void createXMLDocument(Stream<?> inputStream, OutputStream stream) {
+
+  public void write(Object obj) throws NullPointerException{
+    if (obj == null) throw new NullPointerException();
+    queue.add(obj);
+  }
+
+  public void flush(OutputStream stream) {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder;
     try {
@@ -55,7 +63,9 @@ public class XMLSerializator {
       Transformer transformer = transformerFactory.newTransformer();
       Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
 
-      inputStream.forEach(x -> parseObject(doc, x, objectPull, objectSteam, parsedObjects));
+      for (Object x : queue) {
+        parseObject(doc, x, objectPull, objectSteam, parsedObjects);
+      }
 
       transformer.setOutputProperty(OutputKeys.INDENT, "yes");
       DOMSource source = new DOMSource(doc);
@@ -63,7 +73,13 @@ public class XMLSerializator {
       StreamResult result = new StreamResult(stream);
       transformer.transform(source, result);
 
-    } catch (Exception e) {
+      queue = new ArrayDeque<>();
+      id = 0;
+    } catch (TransformerConfigurationException e) {
+      e.printStackTrace();
+    } catch (TransformerException e) {
+      e.printStackTrace();
+    } catch (ParserConfigurationException e) {
       e.printStackTrace();
     }
   }

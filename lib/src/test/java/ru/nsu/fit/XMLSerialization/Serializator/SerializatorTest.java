@@ -39,7 +39,10 @@ public class SerializatorTest {
     objects.add(testClass);
     objects.add(testClass1);
 
-    serializator.createXMLDocument(Stream.of(new DummyClassOuter()), outputStream);
+    serializator.write(objects);
+    serializator.write(testClass);
+    serializator.write(testClass1);
+    serializator.flush(outputStream);
     System.out.println(outputStream);
   }
 }
