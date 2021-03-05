@@ -35,7 +35,7 @@ public class XMLSerializator {
           "java.lang.Character",
           "java.lang.String");
 
-  public void createXMLDocument(Stream<Object> inputStream, StreamResult stream) {
+  public void createXMLDocument(Stream<?> inputStream, StreamResult stream) {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder;
     try {
@@ -52,7 +52,7 @@ public class XMLSerializator {
 
       TransformerFactory transformerFactory = TransformerFactory.newInstance();
       Transformer transformer = transformerFactory.newTransformer();
-      Map<Object, Map.Entry<Integer, String>> parsedObjects = new IdentityHashMap<>();
+      Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
 
       inputStream.forEach(x -> parseObject(doc, x, objectPull, objectSteam, parsedObjects));
 
@@ -67,11 +67,7 @@ public class XMLSerializator {
   }
 
   private void parseObject(
-      Document doc,
-      Object obj,
-      Element pull,
-      Element steam,
-      Map<Object, Map.Entry<Integer, String>> parsedObjects) {
+      Document doc, Object obj, Element pull, Element steam, Map<Object, Integer> parsedObjects) {
 
     Queue<Object> queue = new ArrayDeque<>();
     queue.add(obj);
@@ -79,32 +75,35 @@ public class XMLSerializator {
 
     do {
       obj = queue.remove();
-      String className = obj.getClass().toString().substring(6);
-      className = className.replaceAll("\\$", "--subclass--");
-      Element currObject = doc.createElement(className);
+      String className = obj.getClass().toString();
+      Element currObject;
       if (parsedObjects.containsKey(obj)) {
-        currObject.setAttribute("id", String.valueOf(parsedObjects.get(obj).getKey()));
+        currObject = doc.createElement("id" + String.valueOf(parsedObjects.get(obj)));
       } else {
-        currObject.setAttribute("id", String.valueOf(id));
+        currObject = doc.createElement("id" + String.valueOf(++id));
       }
+      currObject.setAttribute("type", className);
       for (Field field : obj.getClass().getDeclaredFields()) {
         try {
           field.setAccessible(true);
           Type type = field.getType();
           String name = field.getName();
-          name = name.replaceAll("\\$", "--subclass--");
           String value = " ";
 
           if (primAndWrappers.contains(type.getTypeName())) {
             value = String.valueOf(field.get(obj));
           } else {
             if (!parsedObjects.containsKey(field.get(obj))) {
-              value = String.valueOf(++id);
-              queue.add(field.get(obj));
-              parsedObjects.put(field.get(obj), Map.entry(id, ""));
+              if (field.get(obj) != null) {
+                queue.add(field.get(obj));
+                value = String.valueOf(++id);
+              }
+              else{
+                value = "null";
+              }
+              parsedObjects.put(field.get(obj), id);
             } else {
-              Map.Entry<Integer, String> currObj = parsedObjects.get(field.get(obj));
-              int currId = currObj.getKey();
+              int currId = parsedObjects.get(field.get(obj));
               value = String.valueOf(currId);
             }
           }
