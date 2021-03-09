@@ -17,6 +17,11 @@ import org.w3c.dom.Element;
 public class XMLSerializator {
   private int id = 0;
   private Queue<Object> queue = new ArrayDeque<>();
+  private final StreamResult streamResult;
+
+  public XMLSerializator(OutputStream stream){
+    streamResult = new StreamResult(stream);
+  }
 
   private static final Set<String> primAndWrappers =
       new HashSet<>(
@@ -44,14 +49,13 @@ public class XMLSerializator {
     queue.add(obj);
   }
 
-  public void flush(OutputStream stream) {
+  public void flush() {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder;
     try {
       builder = factory.newDocumentBuilder();
     } catch (ParserConfigurationException e) {
-      System.err.println("Can't create XML document: " + e.getMessage());
-      return;
+      throw new RuntimeException(e);
     }
 
     Document doc = builder.newDocument();
@@ -68,8 +72,7 @@ public class XMLSerializator {
     try {
       transformer = transformerFactory.newTransformer();
     } catch (TransformerConfigurationException e) {
-      System.err.println("Can't create transformer fot xml document: " + e.getMessage());
-      return;
+      throw new RuntimeException(e);
     }
     Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
 
@@ -80,11 +83,10 @@ public class XMLSerializator {
     transformer.setOutputProperty(OutputKeys.INDENT, "yes");
     DOMSource source = new DOMSource(doc);
 
-    StreamResult result = new StreamResult(stream);
     try {
-      transformer.transform(source, result);
+      transformer.transform(source, streamResult);
     } catch (TransformerException e) {
-      System.err.println(e.getMessage());
+      throw new RuntimeException(e);
     }
 
     queue = new ArrayDeque<>();

@@ -33,8 +33,8 @@ public class SerializatorTest {
   public void testAnnotationOnClass() {
     TestClass testClass = new TestClass();
     TestClass testClass1 = new TestClass();
-    XMLSerializator serializator = new XMLSerializator();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    XMLSerializator serializator = new XMLSerializator(outputStream);
     List<Object> objects = new ArrayList<>();
     objects.add(testClass);
     objects.add(testClass1);
@@ -42,7 +42,7 @@ public class SerializatorTest {
     serializator.write(objects);
     serializator.write(testClass);
     serializator.write(testClass1);
-    serializator.flush(outputStream);
+    serializator.flush();
     System.out.println(outputStream);
   }
 }
