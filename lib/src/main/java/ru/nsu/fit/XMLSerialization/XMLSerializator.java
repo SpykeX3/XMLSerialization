@@ -109,35 +109,51 @@ public class XMLSerializator {
     do {
       obj = queue.remove();
 
-      Element currObject = doc.createElement("bean");
+      Element currElement = doc.createElement("bean");
 
       String parsedId = String.valueOf(parsedObjects.get(obj));
       parsedObjects.put(obj, parsedId);
 
-      currObject.setAttribute("id", parsedId);
-      currObject.setAttribute("type", obj.getClass().toString());
+      currElement.setAttribute("id", parsedId);
+      currElement.setAttribute("type", obj.getClass().toString());
 
-      for (Field field : obj.getClass().getDeclaredFields()) {
-        field.setAccessible(true);
-        Type type = field.getType();
-        String name = field.getName();
-        String value = null;
-
-        try {
-          value = parseObjectValue(field, obj, queue);
-        } catch (IllegalAccessException ignored) {
+      if (obj.getClass().isArray()){
+        Object[] array = (Object[]) obj;
+        String[] idInArray = new String[array.length];
+        for (int i = 0; i < array.length; ++i){
+          if (parsedObjects.containsKey(array[i])){
+            idInArray[i] = parsedObjects.get(array[i]);
+          }
+          else{
+            idInArray[i] = String.valueOf(++id);
+            parsedObjects.put(array[i], String.valueOf(id));
+            queue.add(array[i]);
+          }
         }
+        currElement.appendChild(doc.createTextNode(Arrays.toString(idInArray)));
+      } else {
+        for (Field field : obj.getClass().getDeclaredFields()) {
+          field.setAccessible(true);
+          Type type = field.getType();
+          String name = field.getName();
+          String value = null;
 
-        Element elem = doc.createElement(name);
-        elem.setAttribute("type", type.toString());
-        elem.appendChild(doc.createTextNode(value));
-        currObject.appendChild(elem);
+          try {
+            value = parseObjectValue(field, obj, queue);
+          } catch (IllegalAccessException ignored) {
+          }
+
+          Element elem = doc.createElement(name);
+          elem.setAttribute("type", type.toString());
+          elem.appendChild(doc.createTextNode(value));
+          currElement.appendChild(elem);
+        }
       }
       if (isSteam) {
         stream.appendChild(createLink(obj, doc));
         isSteam = false;
       }
-      pull.appendChild(currObject);
+      pull.appendChild(currElement);
 
     } while (queue.size() > 0);
   }

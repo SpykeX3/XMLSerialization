@@ -30,17 +30,14 @@ public class SerializatorTest {
   private static class DummyInner {}
 
   @Test
-  public void testAnnotationOnClass() {
+  public void testArraySerialization() {
     TestClass testClass = new TestClass();
     TestClass testClass1 = new TestClass();
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
     XMLSerializator serializator = new XMLSerializator(outputStream);
     TestClass[] objects = new TestClass[]{testClass, testClass1};
 
-   // serializator.write(objects);
-    serializator.write(testClass);
-    //serializator.write(testClass1);
-    serializator.write(testClass);
+    serializator.write(objects);
     serializator.flush();
     System.out.println(outputStream);
   }
