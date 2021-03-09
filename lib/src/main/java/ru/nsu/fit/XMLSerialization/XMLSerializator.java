@@ -1,6 +1,7 @@
 package ru.nsu.fit.XMLSerialization;
 
 import java.io.OutputStream;
+import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -18,8 +19,9 @@ public class XMLSerializator {
   private int id = 0;
   private Queue<Object> queue = new ArrayDeque<>();
   private final StreamResult streamResult;
+  private Map<Object, String> parsedObjects;
 
-  public XMLSerializator(OutputStream stream){
+  public XMLSerializator(OutputStream stream) {
     streamResult = new StreamResult(stream);
   }
 
@@ -68,16 +70,16 @@ public class XMLSerializator {
     rootElement.appendChild(objectPull);
 
     TransformerFactory transformerFactory = TransformerFactory.newInstance();
-    Transformer transformer = null;
+    Transformer transformer;
     try {
       transformer = transformerFactory.newTransformer();
     } catch (TransformerConfigurationException e) {
       throw new RuntimeException(e);
     }
-    Map<Object, Integer> parsedObjects = new IdentityHashMap<>();
+    parsedObjects = new IdentityHashMap<>();
 
     for (Object x : queue) {
-      parseObject(doc, x, objectPull, objectSteam, parsedObjects);
+      parseObject(doc, x, objectPull, objectSteam);
     }
 
     transformer.setOutputProperty(OutputKeys.INDENT, "yes");
@@ -93,62 +95,76 @@ public class XMLSerializator {
     id = 0;
   }
 
-  private void parseObject(
-      Document doc, Object obj, Element pull, Element stream, Map<Object, Integer> parsedObjects) {
+  private void parseObject(Document doc, Object obj, Element pull, Element stream) {
+
+    if (parsedObjects.containsKey(obj)) {
+      stream.appendChild(createLink(obj, doc));
+      return;
+    }
 
     Queue<Object> queue = new ArrayDeque<>();
     queue.add(obj);
     boolean isSteam = true;
-
+    parsedObjects.put(obj, String.valueOf(++id));
     do {
       obj = queue.remove();
-      String className = obj.getClass().toString();
-      Element currObject;
-      if (parsedObjects.containsKey(obj)) {
-        currObject = doc.createElement("id" + String.valueOf(parsedObjects.get(obj)));
-      } else {
-        currObject = doc.createElement("id" + String.valueOf(++id));
-      }
-      currObject.setAttribute("type", className);
+
+      Element currObject = doc.createElement("bean");
+
+      String parsedId = String.valueOf(parsedObjects.get(obj));
+      parsedObjects.put(obj, parsedId);
+
+      currObject.setAttribute("id", parsedId);
+      currObject.setAttribute("type", obj.getClass().toString());
+
       for (Field field : obj.getClass().getDeclaredFields()) {
+        field.setAccessible(true);
+        Type type = field.getType();
+        String name = field.getName();
+        String value = null;
+
         try {
-          field.setAccessible(true);
-          Type type = field.getType();
-          String name = field.getName();
-          String value = " ";
-
-          if (primAndWrappers.contains(type.getTypeName())) {
-            value = String.valueOf(field.get(obj));
-          } else {
-            if (!parsedObjects.containsKey(field.get(obj))) {
-              if (field.get(obj) != null) {
-                queue.add(field.get(obj));
-                value = String.valueOf(++id);
-              } else {
-                value = "null";
-              }
-              parsedObjects.put(field.get(obj), id);
-            } else {
-              int currId = parsedObjects.get(field.get(obj));
-              value = String.valueOf(currId);
-            }
-          }
-
-          Element elem = doc.createElement(name);
-          elem.setAttribute("type", type.toString());
-          elem.appendChild(doc.createTextNode(value));
-          currObject.appendChild(elem);
-
-        } catch (IllegalAccessException e) {
-          e.printStackTrace();
+          value = parseObjectValue(field, obj, queue);
+        } catch (IllegalAccessException ignored) {
         }
+
+        Element elem = doc.createElement(name);
+        elem.setAttribute("type", type.toString());
+        elem.appendChild(doc.createTextNode(value));
+        currObject.appendChild(elem);
       }
       if (isSteam) {
-        stream.appendChild(currObject);
+        stream.appendChild(createLink(obj, doc));
         isSteam = false;
-      } else {
-        pull.appendChild(currObject);
       }
+      pull.appendChild(currObject);
+
     } while (queue.size() > 0);
+  }
+
+  private Element createLink(Object obj, Document doc){
+    Element elem = doc.createElement("link");
+    elem.setAttribute("id", parsedObjects.get(obj));
+    return elem;
+  }
+
+  private String parseObjectValue(Field field, Object obj, Queue<Object> queue)
+      throws IllegalAccessException {
+    // if type is primitive or wrapper for primitive
+    if (primAndWrappers.contains(field.getType().getTypeName())) {
+      return String.valueOf(field.get(obj));
+    }
+    // if we parsed this object we return saved id
+
+    if (parsedObjects.containsKey(field.get(obj))) {
+      return parsedObjects.get(field.get(obj));
+    }
+    // if obj is null value is null
+    if (field.get(obj) == null) {
+      return "null";
+    }
+    queue.add(field.get(obj));
+    parsedObjects.put(field.get(obj), String.valueOf(id + 1));
+    return String.valueOf(++id);
   }
 }
