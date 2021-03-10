@@ -37,7 +37,10 @@ public class SerializatorTest {
     XMLSerializator serializator = new XMLSerializator(outputStream);
     TestClass[] objects = new TestClass[]{testClass, testClass1};
 
-    serializator.write(objects);
+    //serializator.write(testClass);
+    //serializator.write(objects);
+    //System.out.println((new String[]{"pipiska"}).getClass().getComponentType());
+    serializator.write((new int[]{5, 18 , 85647}));
     serializator.flush();
     System.out.println(outputStream);
   }
