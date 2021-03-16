@@ -1,5 +1,6 @@
 package ru.nsu.fit.XMLSerialization;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -15,6 +16,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
+// todo: close serializator after flush.
 public class XMLSerializator {
   private int id = 0;
   private Queue<Object> queue = new ArrayDeque<>();
@@ -96,7 +98,9 @@ public class XMLSerializator {
     }
 
     queue = new ArrayDeque<>();
+    parsedObjects = new HashMap<>();
     id = 0;
+
   }
 
   private void parseObject(Document doc, Object obj, Element pull, Element stream) {
@@ -122,7 +126,6 @@ public class XMLSerializator {
 
       if (objType.isArray()) {
 
-        System.out.println(objType.getComponentType().toString());
         if (!primitives.contains(objType.getComponentType().toString())) {
           Object[] array = (Object[]) obj;
           String[] idInArray = new String[array.length];
@@ -132,15 +135,16 @@ public class XMLSerializator {
             } else {
               idInArray[i] = String.valueOf(++id);
               parsedObjects.put(array[i], String.valueOf(id));
+              if (array[i] == null)
+                continue;
               queue.add(array[i]);
             }
           }
           currElement.appendChild(doc.createTextNode(Arrays.toString(idInArray)));
-        }
-        else{
+        } else {
           String[] arrayValues = new String[Array.getLength(obj)];
-          for (int i = 0; i < Array.getLength(obj); ++i){
-            switch (objType.getComponentType().toString()){
+          for (int i = 0; i < Array.getLength(obj); ++i) {
+            switch (objType.getComponentType().toString()) {
               case "byte":
                 arrayValues[i] = String.valueOf(Array.getByte(obj, i));
                 break;
@@ -174,7 +178,15 @@ public class XMLSerializator {
         }
       } else {
         for (Field field : obj.getClass().getDeclaredFields()) {
+          if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
+            continue;
+          }
+          try{
           field.setAccessible(true);
+          }
+          catch (Exception e){
+            continue;
+          }
           Type type = field.getType();
           String name = field.getName();
           String value = null;
@@ -184,7 +196,11 @@ public class XMLSerializator {
           } catch (IllegalAccessException ignored) {
           }
 
+          //System.out.println(name);
+          if (name.contains("$")) continue;
           Element elem = doc.createElement(name);
+
+         // System.out.println(type);
           elem.setAttribute("type", type.toString());
           elem.appendChild(doc.createTextNode(value));
           currElement.appendChild(elem);
@@ -221,6 +237,7 @@ public class XMLSerializator {
     if (field.get(obj) == null) {
       return "null";
     }
+    System.out.println(field.get(obj));
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);
