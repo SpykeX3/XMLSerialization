@@ -9,6 +9,7 @@ import java.util.List;
 public class TestClass2 {
     private List<Integer> la;
     private TestClass testClass;
+    private String string = "lallala";
 
     public TestClass2(){
         la = new ArrayList<>();

@@ -13,6 +13,7 @@ import java.io.*;
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -52,48 +53,12 @@ public class XMLDeserializator {
     for (Node node : objectPool.values()) {
       parseObject(node);
     }
+
     System.out.println(Arrays.toString(parsedObjects.entrySet().toArray()));
     for (Integer id : objectPool.keySet()) {
       parseObjectFields(id);
     }
     System.out.println(Arrays.toString(parsedObjects.entrySet().toArray()));
-    /*
-    NodeList poolNodes = pool.getChildNodes();
-    for (int tag = 0; tag < poolNodes.getLength(); ++tag) {
-      Node bean = poolNodes.item(tag);
-      if (bean.getAttributes() == null) continue;
-      String type = bean.getAttributes().getNamedItem("type").getTextContent();
-      int id = Integer.parseInt(bean.getAttributes().getNamedItem("id").getTextContent());
-      if (type.contains("class ")) {
-        type = type.replaceAll("class ", "");
-      }
-
-      Class clazz = Class.forName(type);
-      Object createdObject = null;
-
-      Field f = null;
-      try {
-        f = Unsafe.class.getDeclaredField("theUnsafe");
-      } catch (NoSuchFieldException e) {
-        e.printStackTrace();
-      }
-      f.setAccessible(true);
-      Unsafe unsafe;
-      try {
-        unsafe = (Unsafe) f.get(null);
-      } catch (IllegalAccessException e) {
-        e.printStackTrace();
-        return;
-      }
-
-      createdObject = unsafe.allocateInstance(clazz);
-      // todo: отдельно парсить массивы и примитивы
-      // todo: использовать unsafe
-
-      }
-    }
-    */
-
   }
 
   private void createXMLObjectPool(Node pool) {
@@ -125,60 +90,69 @@ public class XMLDeserializator {
       if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
         continue;
       }
+
       field.setAccessible(true);
+
       String name = field.getName();
       for (int i = 0; i < bean.getChildNodes().getLength(); ++i) {
         if (bean.getChildNodes().item(i).getNodeName().equals(name)) {
           Node fieldNode = bean.getChildNodes().item(i);
-          String fieldType = fieldNode.getAttributes().getNamedItem("type").toString();
-          if (fieldType.contains("class ")) {
-            if (fieldNode.getTextContent().equals("null")) {
-              try {
-                field.set(parsedObject, null);
-              } catch (IllegalAccessException ignored) {
-              }
-            } else {
-              int fieldId = Integer.parseInt(fieldNode.getTextContent());
-              try {
-                field.set(parsedObject, parsedObjects.get(fieldId));
-              } catch (IllegalAccessException ignored) {}
+          String fieldType = fieldNode.getAttributes().getNamedItem("type").getTextContent();
+          try {
+
+            if (fieldType.contains("class ")) {
+              setObjectField(field, parsedObject, fieldNode);
               break;
             }
+
+            setPrimitiveField(field, parsedObject, fieldNode);
             break;
-          } else {
-            try {
-              switch (field.getType().toString()) {
-                case ("byte"):
-                  field.set(parsedObject, Byte.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("int"):
-                  field.set(parsedObject, Integer.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("float"):
-                  field.set(parsedObject, Float.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("double"):
-                  field.set(parsedObject, Double.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("short"):
-                  field.set(parsedObject, Short.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("long"):
-                  field.set(parsedObject, Long.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("boolean"):
-                  field.set(parsedObject, Boolean.valueOf(fieldNode.getTextContent()));
-                  break;
-                case ("char"):
-                  field.set(parsedObject, fieldNode.getTextContent().toCharArray()[0]);
-                  break;
-              }
-            } catch (IllegalAccessException ignored) {
-            }
+          } catch (IllegalAccessException e) {
+            break;
           }
         }
       }
     }
+  }
+
+  private void setPrimitiveField(Field field, Object parsedObject, Node bean)
+      throws IllegalAccessException {
+    switch (field.getType().toString()) {
+      case ("byte"):
+        field.set(parsedObject, Byte.valueOf(bean.getTextContent()));
+        break;
+      case ("int"):
+        field.set(parsedObject, Integer.valueOf(bean.getTextContent()));
+        break;
+      case ("float"):
+        field.set(parsedObject, Float.valueOf(bean.getTextContent()));
+        break;
+      case ("double"):
+        field.set(parsedObject, Double.valueOf(bean.getTextContent()));
+        break;
+      case ("short"):
+        field.set(parsedObject, Short.valueOf(bean.getTextContent()));
+        break;
+      case ("long"):
+        field.set(parsedObject, Long.valueOf(bean.getTextContent()));
+        break;
+      case ("boolean"):
+        field.set(parsedObject, Boolean.valueOf(bean.getTextContent()));
+        break;
+      case ("char"):
+        field.set(parsedObject, bean.getTextContent().toCharArray()[0]);
+        break;
+    }
+  }
+
+  private void setObjectField(Field field, Object parsedObject, Node bean)
+      throws IllegalAccessException {
+
+    if (bean.getTextContent().equals("null")) {
+      field.set(parsedObject, null);
+    }
+    int fieldId = Integer.parseInt(bean.getTextContent());
+    field.set(parsedObject, parsedObjects.get(fieldId));
   }
 
   private void parseObject(Node bean) throws ClassNotFoundException, InvalidClassException {
@@ -200,6 +174,10 @@ public class XMLDeserializator {
       parsedObjects.put(id, createdObject);
       return;
     }
+    if (clazz.equals(String.class)){
+      parsedObjects.put(id, bean.getTextContent());
+      return;
+    }
 
     for (Constructor<?> cons : clazz.getConstructors()) {
       try {
@@ -214,7 +192,8 @@ public class XMLDeserializator {
           parsedObjects.put(id, createdObject);
           return;
         }
-      } catch (Exception ignored) {
+      } catch (IllegalAccessException|InstantiationException|InvocationTargetException  e) {
+        throw new RuntimeException(e);
       }
     }
 
@@ -234,8 +213,6 @@ public class XMLDeserializator {
     } catch (InstantiationException e) {
       throw new InvalidClassException(e.toString());
     }
-    // todo: отдельно парсить массивы и примитивы
-
   }
 
   /* todo:
