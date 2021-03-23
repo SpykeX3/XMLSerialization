@@ -7,10 +7,10 @@ public class TestClass {
     private final TestClass2 testClass20 = new TestClass2();
     private TestClass2 testClass21 = testClass20;
     private final TestClass2 testClass22 = new TestClass2();
-    static final int Wzuuuuh = 11;
+    final Integer Wzuuuuh = 11;
 
     TestClass(){
-        testClass20.setTestClass(this);
-        testClass22.setTestClass(this);
+       /* testClass20.setTestClass(this);
+        testClass22.setTestClass(this);*/
     }
 }

@@ -7,9 +7,12 @@ import java.util.List;
 
 @XMLSerializable
 public class TestClass2 {
-    private final List<Integer> la = new ArrayList<>();
+    private List<Integer> la;
     private TestClass testClass;
 
+    public TestClass2(){
+        la = new ArrayList<>();
+    }
     public void setTestClass(TestClass testClass) {
         la.add(5);
         la.add(4);

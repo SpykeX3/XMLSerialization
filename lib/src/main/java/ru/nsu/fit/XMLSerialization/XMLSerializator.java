@@ -1,6 +1,5 @@
 package ru.nsu.fit.XMLSerialization;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
@@ -18,38 +17,13 @@ import org.w3c.dom.Element;
 
 public class XMLSerializator {
   private int id = 0;
-  private Queue<Object> queue = new ArrayDeque<>();
+  private final Queue<Object> queue = new ArrayDeque<>();
   private final StreamResult streamResult;
   private Map<Object, String> parsedObjects;
 
   public XMLSerializator(OutputStream stream) {
     streamResult = new StreamResult(stream);
   }
-
-  private static final Set<String> primitives =
-      new HashSet<>(
-          Arrays.asList(
-              "byte",
-              "short",
-              "int",
-              "long",
-              "float",
-              "double",
-              "boolean",
-              "char",
-              "class java.lang.String"));
-
-  private static final Set<String> wrappers =
-      new HashSet<>(
-          Arrays.asList(
-              "class java.lang.Byte",
-              "class java.lang.Short",
-              "class java.lang.Integer",
-              "class java.lang.Long",
-              "class java.lang.Float",
-              "class java.lang.Double",
-              "class java.lang.Boolean",
-              "class java.lang.Character"));
 
   public void write(Object obj) throws NullPointerException {
     if (obj == null) throw new NullPointerException();
@@ -123,7 +97,7 @@ public class XMLSerializator {
       currElement.setAttribute("type", objType.toString());
 
       if (objType.isArray()) {
-        if (!primitives.contains(objType.getComponentType().toString())) {
+        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString())) {
           Object[] array = (Object[]) obj;
           String[] idInArray = new String[array.length];
           for (int i = 0; i < array.length; ++i) {
@@ -173,8 +147,10 @@ public class XMLSerializator {
           }
           currElement.appendChild(doc.createTextNode(Arrays.toString(arrayValues)));
         }
+        currElement.setAttribute("length", String.valueOf(Array.getLength(obj)));
       } else {
-        if (primitives.contains(objType.toString()) || wrappers.contains(objType.toString())){
+        if (PrimitiveTypes.isPrimitive(objType.toString()) ||
+                PrimitiveTypes.isWrapper(objType.toString())){
           currElement.setTextContent(obj.toString());
         } else {
           for (Field field : obj.getClass().getDeclaredFields()) {
@@ -223,8 +199,8 @@ public class XMLSerializator {
   private String parseObjectValue(Field field, Object obj, Queue<Object> queue)
       throws IllegalAccessException {
     // if type is primitive or wrapper for primitive
-    if (primitives.contains(field.getType().getTypeName())
-        || wrappers.contains(field.getType().getTypeName())) {
+    if (PrimitiveTypes.isPrimitive(field.getType().getTypeName())
+        || PrimitiveTypes.isWrapper(field.getType().getTypeName())) {
       return String.valueOf(field.get(obj));
     }
     // if we parsed this object we return saved id
