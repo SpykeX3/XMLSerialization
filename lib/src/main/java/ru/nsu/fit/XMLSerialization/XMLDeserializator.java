@@ -17,6 +17,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 
 public class XMLDeserializator {
 
@@ -25,8 +26,13 @@ public class XMLDeserializator {
 
   ArrayList<Integer> objectStream = new ArrayList<>();
 
-  public XMLDeserializator(InputStream inputStream)
-      throws InvalidClassException, ClassNotFoundException {
+  /**
+   * Create new XMLDeserializator. Parse document from input stream.
+   * @param inputStream - stream should be filled by XMLSerializator.
+   * @throws InvalidClassException - if class from XMLDocument can't be created.
+   * @throws ClassNotFoundException - if class from XMLDocument can't be allocated.
+   */
+  public XMLDeserializator(InputStream inputStream) throws InvalidClassException, ClassNotFoundException {
     DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
     DocumentBuilder builder;
     try {
@@ -39,16 +45,14 @@ public class XMLDeserializator {
     try {
       doc = builder.parse(inputStream);
     } catch (SAXException | IOException e) {
-      e.printStackTrace();
-      return;
+      throw new RuntimeException(e);
     }
+
     doc.getDocumentElement().normalize();
     Node pool = doc.getElementsByTagName("Object_pool").item(0);
     Node stream = doc.getElementsByTagName("Object_stream").item(0);
     createXMLObjectPool(pool);
     createStreamIDList(stream);
-
-    System.out.println(Arrays.toString(objectPool.entrySet().toArray()));
 
     for (Node node : objectPool.values()) {
       parseObject(node);
@@ -58,7 +62,18 @@ public class XMLDeserializator {
     for (Integer id : objectPool.keySet()) {
       parseObjectFields(id);
     }
-    System.out.println(Arrays.toString(parsedObjects.entrySet().toArray()));
+  }
+
+  /**
+   * Method returns a list of objects from the document in the order in which they were written.
+   * @return list - ArrayList with deserialized objects.
+   */
+  public List<Object> getDeserializedObjects(){
+    List<Object> res = new ArrayList<>();
+    for (Integer id: objectStream){
+      res.add(objectPool.get(id));
+    }
+    return res;
   }
 
   private void createXMLObjectPool(Node pool) {
@@ -81,7 +96,7 @@ public class XMLDeserializator {
     }
   }
 
-  private void parseObjectFields(int id) throws ClassNotFoundException {
+  private void parseObjectFields(int id){
     Node bean = objectPool.get(id);
     Object parsedObject = parsedObjects.get(id);
     Class<?> clazz = parsedObject.getClass();
@@ -214,15 +229,5 @@ public class XMLDeserializator {
       throw new InvalidClassException(e.toString());
     }
   }
-
-  /* todo:
-  public boolean hasNext(){
-      return inputStream.
-  }*/
-  /*
-  public Object readObject(){
-
-  }
-  */
 
 }
