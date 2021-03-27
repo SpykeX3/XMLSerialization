@@ -20,13 +20,13 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 class LazyQuery<T> {
-    private XMLDeserializer parentDeserializer;
-    private Multimap<String, String> fieldsUsedInClasses = HashMultimap.create();
-    private Queue<String> methodQueue = new ArrayDeque<>();
-    private Set<String> processedMethods = new HashSet<>();
-    private String desiredClass;
-    private Predicate<T> predicate;
-    private Set<Integer> initializedIds = new HashSet<>();
+    private final XMLDeserializer parentDeserializer;
+    private final Multimap<String, String> fieldsUsedInClasses = HashMultimap.create();
+    private final Queue<String> methodQueue = new ArrayDeque<>();
+    private final Set<String> processedMethods = new HashSet<>();
+    private final String desiredClass;
+    private final Predicate<T> predicate;
+    private final Set<Integer> initializedIds = new HashSet<>();
 
     LazyQuery(XMLDeserializer caller, Predicate<T> predicate) {
         this.predicate = predicate;
