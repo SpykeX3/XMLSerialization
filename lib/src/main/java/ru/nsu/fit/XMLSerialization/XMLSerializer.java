@@ -15,13 +15,13 @@ import javax.xml.transform.stream.StreamResult;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-public class XMLSerializator {
+public class XMLSerializer {
   private int id = 0;
   private final Queue<Object> queue = new ArrayDeque<>();
   private final StreamResult streamResult;
   private Map<Object, String> parsedObjects;
 
-  public XMLSerializator(OutputStream stream) {
+  public XMLSerializer(OutputStream stream) {
     streamResult = new StreamResult(stream);
   }
 
@@ -212,7 +212,7 @@ public class XMLSerializator {
     if (field.get(obj) == null) {
       return "null";
     }
-    System.out.println(field.get(obj));
+    //System.out.println(field.get(obj));
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);

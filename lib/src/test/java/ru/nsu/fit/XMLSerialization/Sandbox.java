@@ -4,7 +4,6 @@ import javassist.util.proxy.MethodHandler;
 import javassist.util.proxy.ProxyFactory;
 
 import org.junit.Test;
-import ru.nsu.fit.XMLSerialization.ql.QueryBuilder;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.function.Predicate;
@@ -19,17 +18,20 @@ public class Sandbox {
         String greeting;
         int a;
         int b;
+        AnotherDummyClass obj;
 
         public DummyClass() {
             greeting = "Hi!";
             a = 1;
             b = 2;
+            obj = new AnotherDummyClass();
         }
 
         public DummyClass(String greet) {
             greeting = greet;
             a = 1;
             b = 2;
+            obj = null;
         }
 
         void sayHello() {
@@ -49,6 +51,10 @@ public class Sandbox {
         public AnotherDummyClass() {
             c = 1;
             d = 2;
+        }
+
+        boolean isEvenSum() {
+            return ((c + d) & 1) == 0;
         }
     }
 
@@ -82,16 +88,16 @@ public class Sandbox {
     }
 
 
-    @Test
+    /*@Test
     public void testQueryFieldFinder() {
         AnotherDummyClass other = new AnotherDummyClass();
-        QueryBuilder qb = new QueryBuilder(null, DummyClass.class, new Predicate<Object>() {
+        QueryBuilder qb = new QueryBuilder( new Predicate<Object>() {
             @Override
             public boolean test(Object o) {
                 DummyClass target = (DummyClass) o;
                 target.increase();
                 return outerFunction(target.a, target.b)
-                        && target.greeting.equals("test_value") && target.a < 40 && target.b < other.c;
+                        && target.greeting.equals("test_value") && target.a < 40 && target.b < other.c || target.obj.isEvenSum();
             }
         });
         qb.printDebugInfo();
@@ -99,5 +105,5 @@ public class Sandbox {
 
     private boolean outerFunction(int a, int b) {
         return a > b;
-    }
+    }*/
 }
