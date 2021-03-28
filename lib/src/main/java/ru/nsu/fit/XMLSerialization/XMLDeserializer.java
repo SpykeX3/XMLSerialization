@@ -25,6 +25,7 @@ public class XMLDeserializer {
     HashMap<Integer, Node> objectPool = new HashMap<>();
 
     ArrayList<Integer> objectStream = new ArrayList<>();
+    List<Object> cachedDeserializedObjects;
 
     private ArrayFiller aFiller;
 
@@ -65,11 +66,15 @@ public class XMLDeserializer {
      * @throws ClassNotFoundException - if class from XMLDocument can't be allocated.
      */
     public List<Object> getDeserializedObjects() throws InvalidClassException, ClassNotFoundException {
+        if (cachedDeserializedObjects != null) {
+            return cachedDeserializedObjects;
+        }
         deserializeObjects();
         List<Object> res = new ArrayList<>();
         for (Integer id : objectStream) {
             res.add(deserializedObjects.get(id));
         }
+        cachedDeserializedObjects = res;
         return res;
     }
 
