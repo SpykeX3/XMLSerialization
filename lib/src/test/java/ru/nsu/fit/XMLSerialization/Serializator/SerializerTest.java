@@ -7,11 +7,60 @@ import static org.junit.Assert.*;
 import ru.nsu.fit.XMLSerialization.XMLDeserializer;
 import ru.nsu.fit.XMLSerialization.XMLSerializer;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InvalidClassException;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Random;
 import java.util.function.Predicate;
 
 public class SerializerTest {
+
+    static Random rnd = new Random();
+
+    private void assertEquality(Object expected, Object actual) {
+        if (expected == null && actual == null) {
+            return;
+        }
+        assertNotNull(expected);
+        assertEquals(expected.getClass(), actual.getClass());
+        if (expected.getClass().isArray()) {
+            assertArraysEquality(expected, actual);
+        } else if (expected.getClass().equals(Double.class)){
+            assertEquals((double) expected, (double) actual, 0.1);
+        } else if (expected.getClass().equals(Float.class)) {
+            assertEquals((float) expected, (float) actual, 0.1);
+        } else {
+            assertEquals(expected, actual);
+        }
+    }
+
+    private void assertArraysEquality(Object arrayExpected, Object actual) {
+        if (arrayExpected == null && actual == null) {
+            return;
+        }
+        assertTrue(actual.getClass().isArray());
+        assertTrue(arrayExpected.getClass().isArray());
+        assertEquals(arrayExpected.getClass(), actual.getClass());
+        assertEquals(arrayExpected.getClass().getComponentType(), actual.getClass().getComponentType());
+        int len = Array.getLength(arrayExpected);
+        assertEquals(len, Array.getLength(actual));
+        for (int i = 0; i < len; i++) {
+            Object expectedObj = Array.get(arrayExpected, i);
+            Object actualObj = Array.get(actual, i);
+            assertEquality(expectedObj, actualObj);
+        }
+
+    }
+
+    private SimpleBean randomBean() {
+        return new SimpleBean(rnd.nextInt(), rnd.nextInt(), String.valueOf(rnd.nextInt()), String.valueOf(rnd.nextInt()).charAt(0));
+    }
 
     @Test
     public void testCyclesSerialization() throws InvalidClassException, ClassNotFoundException {
@@ -21,7 +70,6 @@ public class SerializerTest {
         XMLSerializer serializator = new XMLSerializer(outputStream);
         serializator.write(testClass);
         serializator.flush();
-        System.out.println(outputStream);
 
         byte[] buffer = outputStream.toByteArray();
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
@@ -32,25 +80,124 @@ public class SerializerTest {
         assertTrue(obj instanceof TestClass);
         TestClass deserialized = (TestClass) obj;
         assertEquals(testClass.Wzuuuuh, deserialized.Wzuuuuh);
-        //assertArrayEquals(testClass.arrayOfObjects, deserialized.arrayOfObjects);
     }
 
     @Test
-    public void testArraySerialization() throws ClassNotFoundException, InvalidClassException {
-        TestClass2 testClass = new TestClass2();
-        TestClass2 testClass1 = new TestClass2();
+    public void testObjectArraySerialization() throws ClassNotFoundException, InvalidClassException {
+        SimpleBean bean1 = new SimpleBean(1, 1f, "1", '1');
+        SimpleBean bean2 = new SimpleBean(2, 2f, "2", '2');
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        TestClass2[] objects = new TestClass2[]{testClass, testClass1};
+        SimpleBean[] objects = new SimpleBean[]{bean1, bean2, null};
 
-        XMLSerializer serializator = new XMLSerializer(outputStream);
-        serializator.write(objects);
-        serializator.flush();
+        XMLSerializer serializer = new XMLSerializer(outputStream);
+        serializer.write(objects);
+        serializer.flush();
         //System.out.println(outputStream);
 
         byte[] buffer = outputStream.toByteArray();
         ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
-        XMLDeserializer deserializator = new XMLDeserializer(byteArrayInputStream);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+        List<?> result = deserializer.getDeserializedObjects();
+        assertEquals(1, result.size());
+        assertTrue(result.get(0) instanceof SimpleBean[]);
+        SimpleBean[] deserialized = (SimpleBean[]) result.get(0);
+        assertEquality(objects, deserialized);
+    }
+
+    @Test
+    public void testPrimitiveArraySerialization() throws ClassNotFoundException, InvalidClassException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        List<Object> arrays = List.of(
+                new int[]{0, 1, 2},
+                new String[]{"String, one", "String, two", null},
+                new float[]{1f, 2f, 3f},
+                new char[]{'a', 'b', 'c'},
+                new byte[]{1, 2, 3},
+                new short[]{1, 2, 3},
+                new boolean[]{true, false, true},
+                new double[]{1d, 2d, 3d},
+                new long[]{1L, 2L, 3L}
+        );
+        XMLSerializer serializer = new XMLSerializer(outputStream);
+        arrays.forEach(serializer::write);
+        serializer.flush();
+        //System.out.println(outputStream);
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+        List<Object> result = deserializer.getDeserializedObjects();
+        assertEquals(arrays.size(), result.size());
+        for (int i = 0; i < result.size(); i++) {
+            assertArraysEquality(arrays.get(i), result.get(i));
+        }
+    }
+
+    @Test
+    public void testArrayOfArraysSerialization() throws ClassNotFoundException, InvalidClassException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        List<Object> arrays = List.of(
+                new int[][]{new int[]{1, 2}, new int[]{3, 4}},
+                new SimpleBean[][]{new SimpleBean[]{new SimpleBean(1, 1, "1", '1'), null}}
+        );
+        XMLSerializer serializer = new XMLSerializer(outputStream);
+        arrays.forEach(serializer::write);
+        serializer.flush();
+        //System.out.println(outputStream);
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+        List<Object> result = deserializer.getDeserializedObjects();
+        assertEquals(arrays.size(), result.size());
+        for (int i = 0; i < result.size(); i++) {
+            assertArraysEquality(arrays.get(i), result.get(i));
+        }
+    }
+
+
+    @Test
+    public void testCollections() throws ClassNotFoundException, InvalidClassException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        HashSet<SimpleBean> hashSet = new HashSet<>();
+        hashSet.add(randomBean());
+        hashSet.add(randomBean());
+        hashSet.add(randomBean());
+
+        List<SimpleBean> linkedList = new LinkedList<>();
+        linkedList.add(randomBean());
+        linkedList.add(randomBean());
+        linkedList.add(randomBean());
+        linkedList.add(randomBean());
+
+        List<SimpleBean> arrayList = new ArrayList<>();
+        arrayList.add(randomBean());
+        arrayList.add(randomBean());
+        arrayList.add(randomBean());
+
+        List<Object> arrays = List.of(
+                List.of(1, 2, 3),
+                Map.of(1, randomBean(),
+                        2, randomBean()),
+                hashSet,
+                linkedList,
+                arrayList
+
+        );
+        XMLSerializer serializer = new XMLSerializer(outputStream);
+        arrays.forEach(serializer::write);
+        serializer.flush();
+        //System.out.println(outputStream);
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+        List<Object> result = deserializer.getDeserializedObjects();
+        assertEquals(arrays.size(), result.size());
+        for (int i = 0; i < result.size(); i++) {
+            assertEquality(arrays.get(i), result.get(i));
+        }
     }
 
     @Test

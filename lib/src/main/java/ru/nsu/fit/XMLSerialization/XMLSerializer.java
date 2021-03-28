@@ -97,17 +97,19 @@ public class XMLSerializer {
       currElement.setAttribute("type", objType.toString());
 
       if (objType.isArray()) {
-        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString())) {
+        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString()) || objType.getComponentType().equals(String.class)) {
           Object[] array = (Object[]) obj;
           String[] idInArray = new String[array.length];
           for (int i = 0; i < array.length; ++i) {
             if (parsedObjects.containsKey(array[i])) {
               idInArray[i] = parsedObjects.get(array[i]);
             } else {
+              if (array[i] == null) {
+                  idInArray[i] = "null";
+                  continue;
+              }
               idInArray[i] = String.valueOf(++id);
               parsedObjects.put(array[i], String.valueOf(id));
-              if (array[i] == null)
-                continue;
               queue.add(array[i]);
             }
           }

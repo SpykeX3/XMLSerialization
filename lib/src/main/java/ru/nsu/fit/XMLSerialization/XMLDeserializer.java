@@ -26,6 +26,8 @@ public class XMLDeserializer {
 
     ArrayList<Integer> objectStream = new ArrayList<>();
 
+    private ArrayFiller aFiller;
+
     /**
      * Create new XMLDeserializator. Parse document from input stream.
      *
@@ -47,6 +49,7 @@ public class XMLDeserializer {
             throw new RuntimeException(e);
         }
 
+        aFiller = new ArrayFiller(this);
         doc.getDocumentElement().normalize();
         Node pool = doc.getElementsByTagName("Object_pool").item(0);
         Node stream = doc.getElementsByTagName("Object_stream").item(0);
@@ -61,7 +64,7 @@ public class XMLDeserializer {
      * @throws InvalidClassException  - if class from XMLDocument can't be created.
      * @throws ClassNotFoundException - if class from XMLDocument can't be allocated.
      */
-    public List<?> getDeserializedObjects() throws InvalidClassException, ClassNotFoundException {
+    public List<Object> getDeserializedObjects() throws InvalidClassException, ClassNotFoundException {
         deserializeObjects();
         List<Object> res = new ArrayList<>();
         for (Integer id : objectStream) {
@@ -153,12 +156,10 @@ public class XMLDeserializer {
                     Node fieldNode = bean.getChildNodes().item(i);
                     String fieldType = fieldNode.getAttributes().getNamedItem("type").getTextContent();
                     try {
-
                         if (fieldType.startsWith("class ")) {
                             setObjectField(field, parsedObject, fieldNode);
                             break;
                         }
-
                         setPrimitiveField(field, parsedObject, fieldNode);
                         break;
                     } catch (IllegalAccessException e) {
@@ -213,9 +214,12 @@ public class XMLDeserializer {
         field.set(parsedObject, deserializedObjects.get(fieldId));
     }
 
-    private void instantiateObject(Node bean) throws ClassNotFoundException, InvalidClassException {
+
+    void instantiateObject(Node bean) throws ClassNotFoundException, InvalidClassException {
         String type = getBeanTypeName(bean);
         int id = Integer.parseInt(bean.getAttributes().getNamedItem("id").getTextContent());
+        if (deserializedObjects.containsKey(id))
+            return;
         if (type.startsWith("class ")) {
             type = type.replaceAll("class ", "");
         }
@@ -230,6 +234,7 @@ public class XMLDeserializer {
             Class<?> arrayType = clazz.getComponentType();
             createdObject = Array.newInstance(arrayType, length);
             deserializedObjects.put(id, createdObject);
+            aFiller.fillArray(id, bean);
             return;
         }
         if (clazz.equals(String.class)) {
@@ -322,7 +327,7 @@ public class XMLDeserializer {
         }
         deserializeObject(id);
         for (Map.Entry<String, Integer> entry : getCompositeFields(id).entrySet()) {
-            deserializeObject(entry.getValue());
+            smartDeserialize(entry.getValue());
         }
     }
 }

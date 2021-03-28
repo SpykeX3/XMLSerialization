@@ -31,11 +31,23 @@ class PrimitiveTypes {
                             "class java.lang.Character"));
 
 
-    static boolean isPrimitive(String type){
+    static boolean isPrimitive(String type) {
         return primitives.contains(type);
     }
 
-    static boolean isWrapper(String type){
+    static boolean isWrapper(String type) {
         return primitives.contains(type);
+    }
+
+    static boolean isObjectArray(String type) {
+        return type.startsWith("class [L") || isArrayOfArrays(type);
+    }
+
+    static boolean isArrayOfArrays(String type) {
+        return type.startsWith("class [[");
+    }
+
+    static boolean isPrimitiveArray(String type) {
+        return type.startsWith("class [") && !type.startsWith("class [L");
     }
 }
