@@ -4,7 +4,11 @@ import org.w3c.dom.Node;
 
 import java.io.InvalidClassException;
 import java.lang.reflect.Array;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 class ArrayFiller {
     private XMLDeserializer parent;
@@ -55,5 +59,37 @@ class ArrayFiller {
         for (int i = 0; i < tokens.length; i++) {
             filler.setArrayCell(array, i, tokens[i]);
         }
+    }
+
+    void deserializeArrayChildren(int id, Node bean) throws InvalidClassException, ClassNotFoundException {
+        String content = bean.getTextContent();
+        if (bean.getAttributes().getNamedItem("length").getTextContent().equals("0"))
+            return;
+        String[] tokens = content.substring(1, content.length() - 1).split(", ");
+        Object array = parent.deserializedObjects.get(id);
+        String type = parent.getBeanTypeName(id);
+        if (PrimitiveTypes.isArrayOfArrays(type)) {
+            for (String token : tokens) {
+                int valueId = Integer.parseInt(token);
+                deserializeArrayChildren(valueId, parent.objectPool.get(valueId));
+            }
+            return;
+        }
+        for (String token : tokens) {
+            if (token.equals("null")) {
+                continue;
+            }
+            int valueId = Integer.parseInt(token);
+            parent.smartDeserialize(valueId);
+        }
+    }
+
+    List<Integer> getObjectArrayContent(int id) {
+        Node bean = parent.objectPool.get(id);
+        String content = bean.getTextContent();
+        if (bean.getAttributes().getNamedItem("length").getTextContent().equals("0"))
+            return Collections.emptyList();
+        String[] tokens = content.substring(1, content.length() - 1).split(", ");
+        return Arrays.stream(tokens).filter(t -> !t.equals("null")).map(Integer::parseInt).collect(Collectors.toList());
     }
 }

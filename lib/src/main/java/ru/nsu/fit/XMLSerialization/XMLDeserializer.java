@@ -1,5 +1,6 @@
 package ru.nsu.fit.XMLSerialization;
 
+import com.google.common.annotations.Beta;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -27,7 +28,7 @@ public class XMLDeserializer {
     ArrayList<Integer> objectStream = new ArrayList<>();
     List<Object> cachedDeserializedObjects;
 
-    private ArrayFiller aFiller;
+    ArrayFiller aFiller;
 
     /**
      * Create new XMLDeserializator. Parse document from input stream.
@@ -316,8 +317,9 @@ public class XMLDeserializer {
         return bean.getAttributes().getNamedItem("type").getTextContent();
     }
 
-    public <T> List<T> filter(Predicate<T> predicate) throws InvalidClassException, ClassNotFoundException {
-        LazyQuery<T> lazyQuery = new LazyQuery<>(this, predicate);
+    @Beta
+    public <T> List<T> filter(Predicate<T> predicate, Class<T> classType) throws InvalidClassException, ClassNotFoundException {
+        LazyQuery<T> lazyQuery = new LazyQuery<>(this, predicate, classType);
         List<Integer> matched = lazyQuery.findIDs();
         for (Integer integer : matched) {
             smartDeserialize(integer);
@@ -326,11 +328,15 @@ public class XMLDeserializer {
                 .map(id -> (T) deserializedObjects.get(id)).collect(Collectors.toList());
     }
 
-    private void smartDeserialize(int id) throws InvalidClassException, ClassNotFoundException {
+    void smartDeserialize(int id) throws InvalidClassException, ClassNotFoundException {
         if (deserializedIDs.contains(id)) {
             return;
         }
+        //TODO process arrays
         deserializeObject(id);
+        if (PrimitiveTypes.isObjectArray(getBeanTypeName(id))) {
+            aFiller.deserializeArrayChildren(id, objectPool.get(id));
+        }
         for (Map.Entry<String, Integer> entry : getCompositeFields(id).entrySet()) {
             smartDeserialize(entry.getValue());
         }

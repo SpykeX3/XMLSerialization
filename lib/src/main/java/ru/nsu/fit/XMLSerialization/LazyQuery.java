@@ -1,5 +1,6 @@
 package ru.nsu.fit.XMLSerialization;
 
+import com.google.common.annotations.Beta;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import javassist.CannotCompileException;
@@ -13,12 +14,14 @@ import javassist.expr.FieldAccess;
 import javassist.expr.MethodCall;
 
 
+import javax.annotation.Nullable;
 import java.io.InvalidClassException;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+@Beta
 class LazyQuery<T> {
     private final XMLDeserializer parentDeserializer;
     private final Multimap<String, String> fieldsUsedInClasses = HashMultimap.create();
@@ -28,13 +31,13 @@ class LazyQuery<T> {
     private final Predicate<T> predicate;
     private final Set<Integer> initializedIds = new HashSet<>();
 
-    LazyQuery(XMLDeserializer caller, Predicate<T> predicate) {
+    LazyQuery(XMLDeserializer caller, Predicate<T> predicate, Class<T> clazz) {
         this.predicate = predicate;
         this.parentDeserializer = caller;
         Method test = Arrays.stream(predicate.getClass().getDeclaredMethods())
                 .filter(m -> m.getName().equals("test"))
                 .findFirst().orElseThrow(() -> new RuntimeException("No test method found"));
-        this.desiredClass = getClass().getGenericSuperclass().getTypeName();
+        this.desiredClass = clazz.getName();
         deepDependencyLookup(desiredClass, test);
     }
 
@@ -49,20 +52,26 @@ class LazyQuery<T> {
     }
 
     //TODO fix name collisions
-    private Set<String> getFields(String expectedClassName, Method method) {
-        return getFields(expectedClassName, method.getDeclaringClass().getName(), method.getName());
+    private void getFields(String expectedClassName, Method method) {
+        getFields(method.getDeclaringClass().getName(), method.getName(), null);
     }
 
-    private Set<String> getFields(String expectedClassName, String className, String methodName) {
+    private void getFields(String className, String methodName, @Nullable String signature) {
         ClassPool cPool = ClassPool.getDefault();
         cPool.insertClassPath(new ClassClassPath(this.getClass()));
         CtMethod test;
         try {
             CtClass ctClass = cPool.get(className);
-            test = Arrays.stream(ctClass.getDeclaredMethods())
-                    .filter(m -> m.getName().equals(methodName))
-                    .findFirst().orElseThrow(() -> new RuntimeException("No such method found:" + methodName + " in class " + ctClass.getName()));
-        } catch (NotFoundException e) {
+            if (signature == null) {
+                test = Arrays.stream(ctClass.getDeclaredMethods())
+                        .filter(m -> m.getName().equals(methodName))
+                        .findFirst().orElseThrow(() -> new RuntimeException("No such method found:" + methodName + " in class " + ctClass.getName()));
+            } else {
+                test = ctClass.getMethod(methodName, signature);
+            }
+
+        } catch (
+                NotFoundException e) {
             throw new RuntimeException(e);
         }
         Objects.requireNonNull(test);
@@ -87,10 +96,11 @@ class LazyQuery<T> {
                     super.edit(m);
                 }
             });
-        } catch (CannotCompileException e) {
+        } catch (
+                CannotCompileException e) {
             throw new RuntimeException(e);
         }
-        return new HashSet<>(fieldsUsedInClasses.get(expectedClassName));
+
     }
 
     private void deepDependencyLookup(String expectedClassName, Method method) {
@@ -99,8 +109,8 @@ class LazyQuery<T> {
             String mid = methodQueue.poll();
             processedMethods.add(mid);
             String[] identifiers = mid.split(" ");
-            System.out.println(mid);
-            getFields(identifiers[0], identifiers[0], identifiers[1]);
+            //System.out.println(mid);
+            getFields(identifiers[0], identifiers[1],identifiers[2]);
         }
     }
 
@@ -122,6 +132,13 @@ class LazyQuery<T> {
         Map<String, Integer> fieldIds = parentDeserializer.getCompositeFields(id);
         Set<String> serializeNext = new HashSet<>(fieldsUsedInClasses.get(parentDeserializer.getBeanTypeName(id)));
         parentDeserializer.deserializeObjectFields(id, serializeNext);
+        String type = parentDeserializer.getBeanTypeName(id);
+        if (PrimitiveTypes.isObjectArray(type)) {
+            for (Integer valueId : parentDeserializer.aFiller.getObjectArrayContent(id)) {
+                lazyInit(valueId);
+            }
+            return;
+        }
         for (Map.Entry<String, Integer> entry : fieldIds.entrySet()) {
             if (!serializeNext.contains(entry.getKey()) || initializedIds.contains(entry.getValue())) continue;
             lazyInit(entry.getValue());
@@ -129,9 +146,8 @@ class LazyQuery<T> {
     }
 
     List<Integer> findIDs() throws InvalidClassException, ClassNotFoundException {
-        System.out.println(desiredClass);
         Set<String> subtypes = parentDeserializer.getObjectIDStream().stream()
-                .map(id -> parentDeserializer.getBeanTypeName(id))
+                .map(parentDeserializer::getBeanTypeName)
                 .filter(type -> isSubtype(desiredClass, type))
                 .collect(Collectors.toSet());
 
@@ -141,7 +157,6 @@ class LazyQuery<T> {
         for (Integer candidate : candidates) {
             lazyInit(candidate);
         }
-
         return candidates.stream()
                 .filter(id -> predicate.test((T) parentDeserializer.getDeserializedObject(id)))
                 .collect(Collectors.toList());

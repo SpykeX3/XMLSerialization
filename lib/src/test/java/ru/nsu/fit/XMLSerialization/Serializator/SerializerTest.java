@@ -11,12 +11,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InvalidClassException;
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.function.Predicate;
 
 public class SerializerTest {
@@ -31,7 +26,7 @@ public class SerializerTest {
         assertEquals(expected.getClass(), actual.getClass());
         if (expected.getClass().isArray()) {
             assertArraysEquality(expected, actual);
-        } else if (expected.getClass().equals(Double.class)){
+        } else if (expected.getClass().equals(Double.class)) {
             assertEquals((double) expected, (double) actual, 0.1);
         } else if (expected.getClass().equals(Float.class)) {
             assertEquals((float) expected, (float) actual, 0.1);
@@ -224,11 +219,132 @@ public class SerializerTest {
             public boolean test(CompositeBean compositeBean) {
                 return compositeBean.first.vInt == 1;
             }
-        });
+        }, CompositeBean.class);
         // check that only necessary instances was created
         assertEquals(instancesCreated + 3, Counting.getCount(SimpleBean.class));
         assertEquals(2, matchedBeans.size());
         matchedBeans.forEach(m -> assertEquals(1, m.first.vInt));
         matchedBeans.forEach(m -> assertEquals(2, m.second.vInt));
+    }
+
+    @Test
+    public void testLazyFilterArrays1() throws InvalidClassException, ClassNotFoundException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLSerializer serializator = new XMLSerializer(outputStream);
+        SimpleBean good = new SimpleBean(1, 1, "1", '1');
+        SimpleBean bad = new SimpleBean(-100, -100, "z", 'z');
+        CompositeArrayBean c1 = new CompositeArrayBean(new SimpleBean[]{good, bad});
+        CompositeArrayBean c2 = new CompositeArrayBean(new SimpleBean[]{bad, good});
+        CompositeArrayBean c3 = new CompositeArrayBean(new SimpleBean[]{bad, bad, bad});
+        serializator.write(c1);
+        serializator.write(c2);
+        serializator.write(c3);
+        serializator.flush();
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+
+        List<CompositeArrayBean> matchedBeans = deserializer.filter(new Predicate<>() {
+            @Override
+            public boolean test(CompositeArrayBean compositeBean) {
+                return compositeBean.array.length % 2 == 0;
+            }
+        }, CompositeArrayBean.class);
+        assertEquals(2, matchedBeans.size());
+        assertEquals(c1, matchedBeans.get(0));
+        assertEquals(c2, matchedBeans.get(1));
+    }
+
+    @Test
+    public void testLazyFilterArrays2() throws InvalidClassException, ClassNotFoundException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLSerializer serializator = new XMLSerializer(outputStream);
+        SimpleBean good = new SimpleBean(1, 1, "1", '1');
+        SimpleBean bad = new SimpleBean(-100, -100, "z", 'z');
+        CompositeArrayBean c1 = new CompositeArrayBean(new SimpleBean[]{good, bad});
+        CompositeArrayBean c2 = new CompositeArrayBean(new SimpleBean[]{bad, good});
+        CompositeArrayBean c3 = new CompositeArrayBean(new SimpleBean[]{bad, bad, bad});
+        serializator.write(c1);
+        serializator.write(c2);
+        serializator.write(c3);
+        serializator.flush();
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+
+        List<CompositeArrayBean> matchedBeans = deserializer.filter(new Predicate<CompositeArrayBean>() {
+            @Override
+            public boolean test(CompositeArrayBean compositeBean) {
+                return compositeBean.array[0].vInt < 0;
+            }
+        }, CompositeArrayBean.class);
+        assertEquals(2, matchedBeans.size());
+        assertEquals(c2, matchedBeans.get(0));
+        assertEquals(c3, matchedBeans.get(1));
+    }
+
+    @Test
+    public void testLazyFilterMixedClasses() throws InvalidClassException, ClassNotFoundException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLSerializer serializator = new XMLSerializer(outputStream);
+        SimpleBean good = new SimpleBean(1, 1, "1", '1');
+        SimpleBean bad = new SimpleBean(-100, -100, "z", 'z');
+        CompositeArrayBean c1 = new CompositeArrayBean(new SimpleBean[]{good, bad});
+        CompositeArrayBean c2 = new CompositeArrayBean(new SimpleBean[]{bad, good});
+        CompositeArrayBean c3 = new CompositeArrayBean(new SimpleBean[]{bad, bad, bad});
+        serializator.write(c2);
+        serializator.write(randomBean());
+        serializator.write(c1);
+        serializator.write(randomBean());
+        serializator.write(randomBean());
+        serializator.write(c3);
+        serializator.write(randomBean());
+        serializator.flush();
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+
+        List<CompositeArrayBean> matchedBeans = deserializer.filter(new Predicate<CompositeArrayBean>() {
+            @Override
+            public boolean test(CompositeArrayBean compositeBean) {
+                return compositeBean.array[0].vInt < 0;
+            }
+        }, CompositeArrayBean.class);
+        assertEquals(2, matchedBeans.size());
+        assertEquals(c2, matchedBeans.get(0));
+        assertEquals(c3, matchedBeans.get(1));
+    }
+
+    @Test
+    public void testLazyFilterCollections() throws InvalidClassException, ClassNotFoundException {
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        XMLSerializer serializator = new XMLSerializer(outputStream);
+        SimpleBean good = new SimpleBean(1, 1, "1", '1');
+        SimpleBean bad = new SimpleBean(-100, -100, "z", 'z');
+        ArrayList<Integer> arrayList = new ArrayList();
+        arrayList.add(1);
+        arrayList.add(666);
+        arrayList.add(3);
+        serializator.write(arrayList);
+        serializator.write(List.of(1, 2, 3, 666));
+        serializator.flush();
+
+        byte[] buffer = outputStream.toByteArray();
+        ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(buffer);
+        int instancesCreated = Counting.getCount(SimpleBean.class);
+        XMLDeserializer deserializer = new XMLDeserializer(byteArrayInputStream);
+
+        List<ArrayList> matchedBeans = deserializer.filter(new Predicate<>() {
+            @Override
+            public boolean test(ArrayList target) {
+                return target.get(1).equals(666);
+            }
+        }, ArrayList.class);
+        assertEquals(instancesCreated, Counting.getCount(SimpleBean.class));
+        assertEquals(1, matchedBeans.size());
+        assertEquals(arrayList,matchedBeans.get(0));
     }
 }
