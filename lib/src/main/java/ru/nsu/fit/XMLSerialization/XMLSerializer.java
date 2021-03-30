@@ -166,19 +166,19 @@ public class XMLSerializer {
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
               continue;
             }
-            // check if transient
             try {
               field.setAccessible(true);
+              // check if transient
               if (java.lang.reflect.Modifier.isTransient(field.getModifiers()))
                 if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
                   continue;
                 }
+              // check if not serializable
               if (!isSerializable(field.get(obj)))
                 if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
                   continue;
                 }
 
-              // check if not serializable
             } catch (Exception e) {
               continue;
             }
