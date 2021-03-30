@@ -94,7 +94,7 @@ public class XMLSerializer {
     parsedObjects.put(obj, String.valueOf(++id));
     do {
       obj = queue.remove();
-      Class objType = obj.getClass();
+      Class<?> objType = obj.getClass();
       Element currElement = doc.createElement("bean");
       String parsedId = String.valueOf(parsedObjects.get(obj));
       parsedObjects.put(obj, parsedId);
@@ -157,8 +157,7 @@ public class XMLSerializer {
         }
         currElement.setAttribute("length", String.valueOf(Array.getLength(obj)));
       } else {
-        if (PrimitiveTypes.isPrimitive(objType.toString()) ||
-                PrimitiveTypes.isWrapper(objType.toString())){
+        if (PrimitiveTypes.isPrimitive(objType.toString())){
           currElement.setTextContent(obj.toString());
         } else {
           for (Field field : obj.getClass().getDeclaredFields()) {
@@ -172,7 +171,7 @@ public class XMLSerializer {
             }
             Type type = field.getType();
             String name = field.getName();
-            String value = null;
+            String value;
 
             if (name.contains("$")) continue;
             Element elem = doc.createElement(name);
@@ -181,9 +180,6 @@ public class XMLSerializer {
               elem.appendChild(doc.createTextNode(value));
             } catch (IllegalAccessException ignored) {}
 
-            // System.out.println(name);
-
-            // System.out.println(type);
             elem.setAttribute("type", type.toString());
             currElement.appendChild(elem);
           }
@@ -207,8 +203,7 @@ public class XMLSerializer {
   private String parseObjectValue(Field field, Object obj, Queue<Object> queue)
       throws IllegalAccessException {
     // if type is primitive or wrapper for primitive
-    if (PrimitiveTypes.isPrimitive(field.getType().getTypeName())
-        || PrimitiveTypes.isWrapper(field.getType().getTypeName())) {
+    if (PrimitiveTypes.isPrimitive(field.getType().getTypeName())) {
       return String.valueOf(field.get(obj));
     }
     // if we parsed this object we return saved id
