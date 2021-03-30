@@ -1,6 +1,8 @@
 package ru.nsu.fit.XMLSerialization;
 
+import java.io.NotSerializableException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
@@ -25,9 +27,14 @@ public class XMLSerializer {
     streamResult = new StreamResult(stream);
   }
 
-  public void write(Object obj) throws NullPointerException {
+  public void write(Object obj) throws NullPointerException{
     if (obj == null) throw new NullPointerException();
-    queue.add(obj);
+    if (obj instanceof Serializable
+            || obj.getClass().isAnnotationPresent(XMLSerializable.class)){
+      queue.add(obj);
+    }else {
+      throw new RuntimeException(new NotSerializableException("Object class is not Serializable"));
+    }
   }
 
   public void flush() {

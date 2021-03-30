@@ -1,6 +1,11 @@
 package ru.nsu.fit.XMLSerialization.Serializator;
 
-public class SimpleBean {
+import ru.nsu.fit.XMLSerialization.XMLSerializable;
+
+import java.io.Serializable;
+
+
+public class SimpleBean implements Serializable {
 
     private static double delta = 0.1;
     int vInt;

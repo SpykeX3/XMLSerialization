@@ -1,5 +1,8 @@
 package ru.nsu.fit.XMLSerialization.Serializator;
 
+import ru.nsu.fit.XMLSerialization.XMLSerializable;
+
+@XMLSerializable
 public class CompositeBean {
     SimpleBean first;
     SimpleBean second;
