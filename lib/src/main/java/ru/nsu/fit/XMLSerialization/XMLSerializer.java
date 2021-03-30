@@ -6,6 +6,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.sql.Types;
 import java.util.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -27,11 +28,11 @@ public class XMLSerializer {
     streamResult = new StreamResult(stream);
   }
 
-  public void write(Object obj) throws NullPointerException{
+  public void write(Object obj) throws NullPointerException {
     if (obj == null) throw new NullPointerException();
-    if (isSerializable(obj)){
+    if (isSerializable(obj)) {
       queue.add(obj);
-    }else {
+    } else {
       throw new RuntimeException(new NotSerializableException("Object class is not Serializable"));
     }
   }
@@ -78,7 +79,6 @@ public class XMLSerializer {
 
     queue.clear();
     id = 0;
-
   }
 
   private void parseObject(Document doc, Object obj, Element pool, Element stream) {
@@ -103,7 +103,8 @@ public class XMLSerializer {
       currElement.setAttribute("type", objType.toString());
 
       if (objType.isArray()) {
-        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString()) || objType.getComponentType().equals(String.class)) {
+        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString())
+            || objType.getComponentType().equals(String.class)) {
           Object[] array = (Object[]) obj;
           String[] idInArray = new String[array.length];
           for (int i = 0; i < array.length; ++i) {
@@ -111,8 +112,8 @@ public class XMLSerializer {
               idInArray[i] = parsedObjects.get(array[i]);
             } else {
               if (array[i] == null) {
-                  idInArray[i] = "null";
-                  continue;
+                idInArray[i] = "null";
+                continue;
               }
               idInArray[i] = String.valueOf(++id);
               parsedObjects.put(array[i], String.valueOf(id));
@@ -157,18 +158,31 @@ public class XMLSerializer {
         }
         currElement.setAttribute("length", String.valueOf(Array.getLength(obj)));
       } else {
-        if (PrimitiveTypes.isPrimitive(objType.toString())){
+        if (PrimitiveTypes.isPrimitive(objType.toString())) {
           currElement.setTextContent(obj.toString());
         } else {
           for (Field field : obj.getClass().getDeclaredFields()) {
+            // check if static
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
               continue;
             }
+            // check if transient
             try {
               field.setAccessible(true);
+              if (java.lang.reflect.Modifier.isTransient(field.getModifiers()))
+                if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
+                  continue;
+                }
+              if (!isSerializable(field.get(obj)))
+                if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
+                  continue;
+                }
+
+              // check if not serializable
             } catch (Exception e) {
               continue;
             }
+
             Type type = field.getType();
             String name = field.getName();
             String value;
@@ -178,7 +192,8 @@ public class XMLSerializer {
             try {
               value = parseObjectValue(field, obj, queue);
               elem.appendChild(doc.createTextNode(value));
-            } catch (IllegalAccessException ignored) {}
+            } catch (IllegalAccessException ignored) {
+            }
 
             elem.setAttribute("type", type.toString());
             currElement.appendChild(elem);
@@ -215,14 +230,14 @@ public class XMLSerializer {
     if (field.get(obj) == null) {
       return "null";
     }
-    //System.out.println(field.get(obj));
+    // System.out.println(field.get(obj));
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);
   }
 
-  private boolean isSerializable(Object obj){
+  private boolean isSerializable(Object obj) {
     return (obj instanceof Serializable
-            || obj.getClass().isAnnotationPresent(XMLSerializable.class));
+        || obj.getClass().isAnnotationPresent(XMLSerializable.class));
   }
 }
