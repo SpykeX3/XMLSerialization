@@ -171,14 +171,9 @@ public class XMLSerializer {
               // check if transient
               if (java.lang.reflect.Modifier.isTransient(field.getModifiers()))
                 if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
+                  System.out.println(field);
                   continue;
                 }
-              // check if not serializable
-              if (!isSerializable(field.get(obj)))
-                if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
-                  continue;
-                }
-
             } catch (Exception e) {
               continue;
             }
