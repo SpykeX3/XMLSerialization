@@ -29,8 +29,7 @@ public class XMLSerializer {
 
   public void write(Object obj) throws NullPointerException{
     if (obj == null) throw new NullPointerException();
-    if (obj instanceof Serializable
-            || obj.getClass().isAnnotationPresent(XMLSerializable.class)){
+    if (isSerializable(obj)){
       queue.add(obj);
     }else {
       throw new RuntimeException(new NotSerializableException("Object class is not Serializable"));
@@ -225,5 +224,10 @@ public class XMLSerializer {
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);
+  }
+
+  private boolean isSerializable(Object obj){
+    return (obj instanceof Serializable
+            || obj.getClass().isAnnotationPresent(XMLSerializable.class));
   }
 }
