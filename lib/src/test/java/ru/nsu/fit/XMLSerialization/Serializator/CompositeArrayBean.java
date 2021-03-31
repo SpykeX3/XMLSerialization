@@ -1,10 +1,7 @@
 package ru.nsu.fit.XMLSerialization.Serializator;
 
-import ru.nsu.fit.XMLSerialization.XMLSerializable;
-
 import java.util.Arrays;
 
-@XMLSerializable
 public class CompositeArrayBean {
     SimpleBean[] array;
     SimpleBean anotherSB;

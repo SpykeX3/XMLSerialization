@@ -30,11 +30,7 @@ public class XMLSerializer {
 
   public void write(Object obj) throws NullPointerException {
     if (obj == null) throw new NullPointerException();
-    if (isSerializable(obj)) {
-      queue.add(obj);
-    } else {
-      throw new RuntimeException(new NotSerializableException("Object class is not Serializable"));
-    }
+    queue.add(obj);
   }
 
   public void flush() {
@@ -168,7 +164,7 @@ public class XMLSerializer {
             }
             try {
               field.setAccessible(true);
-              // check if transient
+              // check if transient/*
               if (java.lang.reflect.Modifier.isTransient(field.getModifiers()))
                 if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
                   System.out.println(field);
@@ -229,10 +225,5 @@ public class XMLSerializer {
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);
-  }
-
-  private boolean isSerializable(Object obj) {
-    return (obj instanceof Serializable
-        || obj.getClass().isAnnotationPresent(XMLSerializable.class));
   }
 }

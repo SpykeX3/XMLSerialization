@@ -3,7 +3,6 @@ package ru.nsu.fit.XMLSerialization.AnotationAndSerializableTest;
 import org.junit.Assert;
 import org.junit.Test;
 import ru.nsu.fit.XMLSerialization.XMLDeserializer;
-import ru.nsu.fit.XMLSerialization.XMLSerializable;
 import ru.nsu.fit.XMLSerialization.XMLSerializer;
 
 import java.io.ByteArrayInputStream;
@@ -12,20 +11,18 @@ import java.io.InvalidClassException;
 import java.util.List;
 
 public class TransientSerializableField {
-  @XMLSerializable
-  class AnnotatedClass {}
+  class bean {}
 
-  @XMLSerializable
   static class testClass {
-    AnnotatedClass annotatedClass;
-    transient AnnotatedClass transientAnnotated;
-    static AnnotatedClass staticAnnotated;
+    bean testClass;
+    transient bean transientAnnotated;
+    static bean staticAnnotated;
 
     testClass(
-        AnnotatedClass a1,
-        AnnotatedClass t1,
-        AnnotatedClass st1) {
-      annotatedClass = a1;
+        bean a1,
+        bean t1,
+        bean st1) {
+      testClass = a1;
       transientAnnotated = t1;
       staticAnnotated = st1;
     }
@@ -35,9 +32,9 @@ public class TransientSerializableField {
   public void testAnnotation() throws InvalidClassException, ClassNotFoundException {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     XMLSerializer serializer = new XMLSerializer(out);
-    AnnotatedClass a1 = new AnnotatedClass();
-    AnnotatedClass a2 = new AnnotatedClass();
-    AnnotatedClass a3 = new AnnotatedClass();
+    bean a1 = new bean();
+    bean a2 = new bean();
+    bean a3 = new bean();
 
     serializer.write(new testClass(a1, a2, a3));
     serializer.flush();
@@ -55,7 +52,7 @@ public class TransientSerializableField {
     testClass result = (testClass) list.get(0);
 
     Assert.assertNull(result.transientAnnotated);
-    Assert.assertNotNull(result.annotatedClass);
+    Assert.assertNotNull(result.testClass);
     Assert.assertNull(testClass.staticAnnotated);
   }
 }
