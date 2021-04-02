@@ -1,9 +1,12 @@
 package ru.nsu.fit.XMLSerialization;
 
+import java.io.NotSerializableException;
 import java.io.OutputStream;
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
+import java.sql.Types;
 import java.util.*;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -72,7 +75,6 @@ public class XMLSerializer {
 
     queue.clear();
     id = 0;
-
   }
 
   private void parseObject(Document doc, Object obj, Element pool, Element stream) {
@@ -88,7 +90,7 @@ public class XMLSerializer {
     parsedObjects.put(obj, String.valueOf(++id));
     do {
       obj = queue.remove();
-      Class objType = obj.getClass();
+      Class<?> objType = obj.getClass();
       Element currElement = doc.createElement("bean");
       String parsedId = String.valueOf(parsedObjects.get(obj));
       parsedObjects.put(obj, parsedId);
@@ -97,7 +99,8 @@ public class XMLSerializer {
       currElement.setAttribute("type", objType.toString());
 
       if (objType.isArray()) {
-        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString()) || objType.getComponentType().equals(String.class)) {
+        if (!PrimitiveTypes.isPrimitive(objType.getComponentType().toString())
+            || objType.getComponentType().equals(String.class)) {
           Object[] array = (Object[]) obj;
           String[] idInArray = new String[array.length];
           for (int i = 0; i < array.length; ++i) {
@@ -105,8 +108,8 @@ public class XMLSerializer {
               idInArray[i] = parsedObjects.get(array[i]);
             } else {
               if (array[i] == null) {
-                  idInArray[i] = "null";
-                  continue;
+                idInArray[i] = "null";
+                continue;
               }
               idInArray[i] = String.valueOf(++id);
               parsedObjects.put(array[i], String.valueOf(id));
@@ -151,33 +154,38 @@ public class XMLSerializer {
         }
         currElement.setAttribute("length", String.valueOf(Array.getLength(obj)));
       } else {
-        if (PrimitiveTypes.isPrimitive(objType.toString()) ||
-                PrimitiveTypes.isWrapper(objType.toString())){
+        if (PrimitiveTypes.isPrimitive(objType.toString())) {
           currElement.setTextContent(obj.toString());
         } else {
           for (Field field : obj.getClass().getDeclaredFields()) {
+            // check if static
             if (java.lang.reflect.Modifier.isStatic(field.getModifiers())) {
               continue;
             }
             try {
               field.setAccessible(true);
+              // check if transient/*
+              if (java.lang.reflect.Modifier.isTransient(field.getModifiers()))
+                if (!(obj instanceof Collection<?> || obj instanceof Map<?, ?>)) {
+                  System.out.println(field);
+                  continue;
+                }
             } catch (Exception e) {
               continue;
             }
+
             Type type = field.getType();
             String name = field.getName();
-            String value = null;
+            String value;
 
             if (name.contains("$")) continue;
             Element elem = doc.createElement(name);
             try {
               value = parseObjectValue(field, obj, queue);
               elem.appendChild(doc.createTextNode(value));
-            } catch (IllegalAccessException ignored) {}
+            } catch (IllegalAccessException ignored) {
+            }
 
-            // System.out.println(name);
-
-            // System.out.println(type);
             elem.setAttribute("type", type.toString());
             currElement.appendChild(elem);
           }
@@ -201,8 +209,7 @@ public class XMLSerializer {
   private String parseObjectValue(Field field, Object obj, Queue<Object> queue)
       throws IllegalAccessException {
     // if type is primitive or wrapper for primitive
-    if (PrimitiveTypes.isPrimitive(field.getType().getTypeName())
-        || PrimitiveTypes.isWrapper(field.getType().getTypeName())) {
+    if (PrimitiveTypes.isPrimitive(field.getType().getTypeName())) {
       return String.valueOf(field.get(obj));
     }
     // if we parsed this object we return saved id
@@ -214,7 +221,7 @@ public class XMLSerializer {
     if (field.get(obj) == null) {
       return "null";
     }
-    //System.out.println(field.get(obj));
+    // System.out.println(field.get(obj));
     queue.add(field.get(obj));
     parsedObjects.put(field.get(obj), String.valueOf(id + 1));
     return String.valueOf(++id);

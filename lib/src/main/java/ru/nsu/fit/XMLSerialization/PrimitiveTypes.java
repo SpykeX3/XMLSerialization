@@ -35,10 +35,6 @@ class PrimitiveTypes {
         return primitives.contains(type);
     }
 
-    static boolean isWrapper(String type) {
-        return primitives.contains(type);
-    }
-
     static boolean isObjectArray(String type) {
         return type.startsWith("class [L") || isArrayOfArrays(type);
     }

@@ -1,6 +1,9 @@
 package ru.nsu.fit.XMLSerialization.Serializator;
 
-public class SimpleBean {
+import java.io.Serializable;
+
+
+public class SimpleBean implements Serializable, Comparable{
 
     private static double delta = 0.1;
     int vInt;
@@ -40,5 +43,14 @@ public class SimpleBean {
     @Override
     public int hashCode() {
         return Integer.valueOf(vInt).hashCode();
+    }
+
+
+    @Override
+    public int compareTo(Object o) {
+        if (o instanceof SimpleBean){
+            return vInt - ((SimpleBean) o).vInt;
+        }
+        return 0;
     }
 }

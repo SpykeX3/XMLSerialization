@@ -231,9 +231,9 @@ public class XMLDeserializer {
         }
 
         Class<?> clazz = Class.forName(type);
-        int length = 0;
+        int length;
         // clazz.newInstance();
-        Object createdObject = null;
+        Object createdObject;
 
         if (clazz.isArray()) {
             length = Integer.parseInt(bean.getAttributes().getNamedItem("length").getTextContent());
@@ -263,7 +263,7 @@ public class XMLDeserializer {
 
         Unsafe unsafe;
         try {
-            Field f = null;
+            Field f;
             f = Unsafe.class.getDeclaredField("theUnsafe");
             f.setAccessible(true);
             unsafe = (Unsafe) f.get(null);
